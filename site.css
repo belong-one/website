@@ -1,0 +1,122 @@
+/* The public website's shared layout: the landing page and the Use page. Built on the Belong design system
+   (ds/tokens.css, ds/belong.css and the logo files, copied in by tools/build_site.py) and styled only with its
+   tokens: a white ground, light gray bands as accents (the owner's choice for the website: cream stays the web app's),
+   coral for the one action, periwinkle for the agents and every hidden detail, mint for live status at most once per
+   page. Open whitespace, not rules, separates things. */
+
+/* The website's accent surface: the palette's lightest gray thinned with the ground, about as light as the cream it
+   replaces, so every band, stripe and chip that uses surface-raised turns gray here. (The website is always light; the
+   dark value is the system's own dark raised surface, only for a page that says dark.) */
+:root { --page-margin: 24px; --surface-raised: color-mix(in srgb, var(--sf-char-100) 40%, var(--surface-app)); }
+:root[data-theme="dark"] { --surface-raised: var(--sf-char-700); }
+@media (min-width: 960px) { :root { --page-margin: 40px; } }
+
+.wrap { max-width: var(--content-max); margin: 0 auto; padding: 0 var(--page-margin); }
+
+/* Headings and short intros wrap into even lines; other text never leaves one word alone on its last line. */
+h1, h2, h3, .lead, .intro { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+
+/* The Belong app in the two stores: badges in the card's color, the stores' marks in one color. */
+.stores { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.store { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 8px 12px;
+  border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-primary); text-decoration: none;
+  border: 1px solid var(--border-strong); font: var(--text-body-m); font-weight: 600; line-height: 1.1;
+  transition: background var(--duration-base) var(--ease-standard); }
+.store svg { width: 22px; height: 22px; flex-shrink: 0; }
+.store small { display: block; font: var(--text-caption); font-size: 10px; }
+.store:hover { background: var(--surface-raised); }
+.store:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- Top bar: the logo, two links, one button ---------- */
+.site-top { position: relative; z-index: 10; background: var(--surface-nav-blur);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.site-top .wrap { height: 72px; display: flex; align-items: center; gap: var(--space-6); }
+.logo { display: inline-flex; margin-right: auto; }
+.logo img { height: 26px; width: auto; display: block; }
+.site-top nav { display: flex; gap: var(--space-6); }
+.site-top nav a { font: var(--text-body-s); font-weight: 500; color: var(--text-secondary); text-decoration: none;
+  padding: 6px 0; border-bottom: 2px solid transparent; transition: color var(--duration-fast) var(--ease-standard); }
+.site-top nav a:hover { color: var(--text-primary); }
+.site-top nav a[aria-current="page"] { color: var(--text-primary); border-bottom-color: var(--border-accent); }
+@media (max-width: 640px) { .site-top nav { gap: var(--space-4); } }
+/* Signed in: the account menu in Sign in's place (_account-menu.html), the web app's menu button and dropdown. */
+.site-top nav { align-items: center; }
+.acct { position: relative; display: flex; align-items: center; } /* a flex box: no line box around the button, so it centers on the nav */
+.menu-btn { all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; flex-direction: column;
+  justify-content: center; align-items: center; gap: 4px; cursor: pointer; border-radius: var(--radius-md); }
+.menu-btn span { display: block; width: 16px; height: 2px; background: var(--text-primary); border-radius: 1px;
+  transition: transform var(--duration-base) var(--ease-standard), opacity var(--duration-base); }
+.menu-btn:hover { background: var(--surface-raised); }
+.menu-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.menu-btn[aria-expanded="true"] span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.menu-btn[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.menu-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.acct-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 200px;
+  background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); padding: var(--space-1) 0; }
+.site-top nav .acct-menu a, .acct-menu button { all: unset; box-sizing: border-box; display: block; width: 100%;
+  padding: var(--space-3) var(--space-4); cursor: pointer; font: var(--text-body-s); color: var(--text-primary); }
+.site-top nav .acct-menu a:hover, .acct-menu a:focus-visible, .acct-menu button:hover, .acct-menu button:focus-visible {
+  background: var(--surface-raised); }
+.acct-menu button.sep { border-top: 1px solid var(--border-subtle); margin-top: var(--space-1); color: var(--text-secondary); }
+@media (prefers-reduced-motion: reduce) { .menu-btn span { transition: none; } }
+
+/* ---------- Sections ---------- */
+.section { padding: var(--space-24) 0; }
+.section:not(.band) + .section:not(.band) { padding-top: 0; }  /* two plain sections share one gap */
+/* Cream is the accent surface: a full-bleed band, never two touching. */
+.band { background: var(--surface-raised); }
+.section .eyebrow { margin-bottom: var(--space-3); }
+.section h2 { margin: 0 0 var(--space-4); }
+.section h2.display-m { font-size: var(--font-size-display-m); }
+.section .intro { font: var(--text-body-l); color: var(--text-secondary); max-width: var(--content-narrow); margin: 0 0 var(--space-12); }
+
+.grid { display: grid; gap: var(--space-6); }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 960px) { .grid.three { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .grid.two { grid-template-columns: 1fr; } }
+/* On a phone the page tightens: half the space between sections, body-size intros, so it reads without long scrolls. */
+@media (max-width: 640px) {
+  :root { --page-margin: 20px; }
+  .section { padding: var(--space-12) 0; }
+  .section .intro { font: var(--text-body-m); margin-bottom: var(--space-8); }
+  .grid { gap: var(--space-4); }
+}
+.card h3 { margin: 0 0 var(--space-2); }
+.card p { margin: 0; color: var(--text-secondary); font: var(--text-body-s); }
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.small { font: var(--text-caption); color: var(--text-tertiary); }
+
+/* What's simulated or still a draft: a badge and a plain sentence, never hidden in small print. */
+.status { display: flex; gap: var(--space-4); align-items: flex-start; margin-top: var(--space-10); }
+.status p { margin: 0; color: var(--text-secondary); max-width: var(--content-narrow); }
+.status b { color: var(--text-primary); }
+@media (max-width: 640px) { .status { flex-direction: column; gap: var(--space-3); } }
+
+/* ---------- Footer: a thin inverse bar with the cream logo on the left, nothing else ---------- */
+.site-foot { background: var(--surface-inverse); }
+.site-foot .wrap { padding-top: 6px; padding-bottom: 6px; display: flex; align-items: center; }
+.site-foot .logo img { height: 14px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise { animation: rise var(--duration-slow) var(--ease-standard) both; }
+  .rise.later { animation-delay: 120ms; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+
+/* The badge marks, set into text where badges come up: a hexagon with a brush check, solid for a public badge and an
+   outline for a private one. They take the size of the text around them. */
+.bmark { display: inline-block; width: 1em; height: 1em; vertical-align: -0.14em; margin-right: 0.3em; flex: none; }
+.bmark .f { fill: var(--accent-default); }
+.bmark .w { fill: var(--surface-card); }
+.bmark .l { fill: none; stroke: var(--accent-default); stroke-width: 1.8; }
+
+/* Round arrow buttons, to step to the one before or after (the landing page's examples, the private badges story). */
+.ways-step { all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: var(--text-tertiary); cursor: pointer; transition: color var(--duration-fast) var(--ease-standard); }
+.ways-step:hover { color: var(--text-primary); }
+.ways-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ways-step svg { width: 18px; height: 18px; }

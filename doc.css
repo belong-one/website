@@ -1,0 +1,37 @@
+/* The technical part of the Use and developer pages (use.md and developers.md, laid out by tools/build_site.py): an
+   "On this page" list on the left, the document on the right. Styled only with the design system's tokens. */
+
+.build { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-16); align-items: start; }
+.build-side { position: sticky; top: var(--space-6); max-height: calc(100vh - 48px); overflow-y: auto; padding: var(--space-20) 0; }
+.build-side .label { margin: 0 0 var(--space-3); color: var(--text-tertiary); }
+.build-side nav { display: flex; flex-direction: column; }
+.build-side nav a { font: var(--text-body-s); color: var(--text-secondary); text-decoration: none; padding: 5px 0; }
+.build-side nav a:hover { color: var(--text-primary); }
+.build-side .raw { display: block; margin-top: var(--space-6); font: var(--text-caption); color: var(--text-tertiary); }
+@media (max-width: 960px) { .build { grid-template-columns: 1fr; gap: 0; } .build-side { display: none; } }
+
+/* The technical part: body copy held to the narrow measure, tables and code allowed to run wider. */
+.doc { padding: var(--space-20) 0 var(--space-24); min-width: 0; }
+.doc > .eyebrow { margin: 0 0 var(--space-3); }
+.doc h2.title { font-size: var(--font-size-display-m); margin: 0 0 var(--space-6); max-width: 22ch; }
+.doc h2:not(.title) { font: var(--text-display-s); font-size: 1.625rem; margin: var(--space-16) 0 var(--space-4); scroll-margin-top: 96px; }
+.doc h3 { font: var(--text-heading-l); margin: var(--space-10) 0 var(--space-3); scroll-margin-top: 96px; }
+.doc p, .doc ul { max-width: var(--content-narrow); color: var(--text-secondary); }
+.doc p { margin: 0 0 var(--space-4); }
+.doc ul { margin: 0 0 var(--space-5); padding-left: 1.2em; }
+.doc li { margin: 0 0 var(--space-2); }
+.doc strong { color: var(--text-primary); font-weight: 600; }
+.doc code { font: var(--text-mono-s); font-size: 0.85em; background: var(--surface-raised); padding: 1px 5px; border-radius: var(--radius-sm);
+  color: var(--text-primary); overflow-wrap: anywhere; }
+.doc pre { font: var(--text-mono-s); background: var(--surface-inverse); color: var(--text-inverse); border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-6); margin: 0 0 var(--space-6); overflow-x: auto; max-width: 900px; }
+.doc pre code { background: none; color: inherit; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.doc .scroll { overflow-x: auto; margin: 0 0 var(--space-6); max-width: 900px; }
+.doc table { width: 100%; border-collapse: collapse; font: var(--text-body-s); }
+.doc th, .doc td { text-align: left; vertical-align: top; padding: var(--space-3); }
+.doc th { font: var(--text-label); color: var(--text-tertiary); }
+.doc tbody tr:nth-child(odd) td { background: var(--surface-raised); }
+.doc td { color: var(--text-secondary); }
+/* Names and scopes never break and the last column keeps room to read; on a phone the table scrolls sideways. */
+.doc td code { white-space: nowrap; }
+.doc td:last-child { min-width: 14em; }

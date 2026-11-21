@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in to Belong</title>
+<meta name="description" content="Sign in to Belong with Google, a passkey or your email address, or sign up with Google, your own AI agent or your email address.">
+<link rel="stylesheet" href="ds/tokens.css">
+<link rel="stylesheet" href="ds/belong.css">
+<link rel="stylesheet" href="site.css">
+<link rel="icon" type="image/svg+xml" href="ds/logo/belong-icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="belong-app" content="https://app.belong.one">
+<meta name="robots" content="noindex">
+<style>
+  /* A light password gate before launch, by the owner's choice: every page asks once, then remembers in this browser.
+     It only hides the page; anyone who reads the source or the plain text files gets past it. */
+  html.gated body > :not(.gate) { display: none !important; }
+  .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: var(--space-6);
+    background: var(--surface-app); }
+  .gate form { width: 100%; max-width: 320px; }
+  .gate img { display: block; height: 30px; width: auto; margin: 0 auto var(--space-8); }
+  /* The wordmark for the ground's theme (the same rule the tokens switch by): ink on light, cream on dark. */
+  .gate .gate-dark { display: none; }
+  :root[data-theme="dark"] .gate .gate-light { display: none; }
+  :root[data-theme="dark"] .gate .gate-dark { display: block; }
+  .gate .input { margin-bottom: var(--space-3); }
+  .gate .text-error { margin: var(--space-3) 0 0; font: var(--text-body-s); }
+</style>
+<script>
+  (() => {
+    // SHA-256 of the password, never the password itself. Computed here rather than with crypto.subtle, which a
+    // page on plain http (the local preview on a phone) doesn't have.
+    const WANT = "9c000e9da53b61e498a4914c00a7e42e7b2e770b0383b2d19fe253b65764746b", KEY = "belong-gate";
+    const sha256 = text => {
+      const primes = [];
+      for (let n = 2; primes.length < 64; n++) if (primes.every(p => n % p)) primes.push(n);
+      const frac = x => ((x - Math.floor(x)) * 2 ** 32) >>> 0, rotr = (x, n) => (x >>> n) | (x << (32 - n));
+      const K = primes.map(p => frac(Math.cbrt(p))), H = primes.slice(0, 8).map(p => frac(Math.sqrt(p)));
+      const bytes = new TextEncoder().encode(text), len = Math.ceil((bytes.length + 9) / 64) * 64;
+      const buf = new Uint8Array(len), view = new DataView(buf.buffer), w = new Array(64);
+      buf.set(bytes); buf[bytes.length] = 0x80; view.setUint32(len - 4, bytes.length * 8);
+      for (let at = 0; at < len; at += 64) {
+        for (let i = 0; i < 64; i++) {
+          if (i < 16) { w[i] = view.getUint32(at + i * 4); continue; }
+          const a = w[i - 15], b = w[i - 2];
+          w[i] = (w[i - 16] + (rotr(a, 7) ^ rotr(a, 18) ^ (a >>> 3)) + w[i - 7] + (rotr(b, 17) ^ rotr(b, 19) ^ (b >>> 10))) | 0;
+        }
+        let [a, b, c, d, e, f, g, h] = H;
+        for (let i = 0; i < 64; i++) {
+          const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) | 0;
+          const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+          h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+        }
+        [a, b, c, d, e, f, g, h].forEach((v, i) => { H[i] = (H[i] + v) | 0; });
+      }
+      return H.map(x => (x >>> 0).toString(16).padStart(8, "0")).join("");
+    };
+    try { if (localStorage.getItem(KEY) === WANT) return; } catch (e) {}
+    document.documentElement.classList.add("gated");
+    addEventListener("DOMContentLoaded", () => {
+      const gate = document.createElement("div");
+      gate.className = "gate";
+      gate.innerHTML = '<form><img class="gate-light" src="ds/logo/belong-wordmark-small-ink.svg" alt="Belong" width="90" height="26">' +
+        '<img class="gate-dark" src="ds/logo/belong-wordmark-small-cream.svg" alt="Belong" width="90" height="26">' +
+        '<label class="field-label" for="gate-password">Password</label>' +
+        '<input class="input" id="gate-password" type="password" autocomplete="current-password" required>' +
+        '<button type="submit" class="btn block lg">Enter</button>' +
+        '<p class="text-error" role="alert" hidden>That isn\'t it.</p></form>';
+      document.body.prepend(gate);
+      const field = gate.querySelector("input"), wrong = gate.querySelector("p");
+      field.focus();
+      gate.querySelector("form").addEventListener("submit", e => {
+        e.preventDefault();
+        if (sha256(field.value) !== WANT) { wrong.hidden = false; field.select(); return; }
+        try { localStorage.setItem(KEY, WANT); } catch (e) {}
+        gate.remove();
+        document.documentElement.classList.remove("gated");
+      });
+    });
+  })();
+</script>
+<style>
+  /* Sign in: one narrow column with two tabs. Signing in takes Google, a passkey, or an email address and then a
+     second step for the password and a check that it's a person;
+     a new account takes Google, the person's own AI agent (over MCP: the link explains connecting one), or an email
+     address and then a second step for name, user ID, email (typed twice), phone number (confirmed by a code, only
+     with text messages on: belong/switches.py) and password (typed twice); the
+     Belong app's store links sit under it.
+     One coral button per tab. */
+  body { display: flex; flex-direction: column; min-height: 100svh; }  /* the footer stays at the bottom */
+  .signin { flex: 1; padding: var(--space-12) 0 var(--space-16); }
+  .signin .wrap { max-width: 440px; }
+  /* The page's heading is for screen readers only: the tabs lead on screen. */
+  .signin h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .signin .tabs { margin-bottom: var(--space-8); gap: 0; }
+  .signin .tabs button { flex: 1; margin-right: 0; text-align: center; }  /* two halves, each label centered */
+  .signin .others { display: grid; gap: var(--space-2); }
+  /* What the page hides stays hidden, whatever display a component class gives it (.btn's inline-flex). */
+  [hidden] { display: none !important; }
+  /* Google's own G, in Google's own colors as its brand rules ask: the one mark on the site outside the tokens. */
+  .signin .g { width: 18px; height: 18px; flex-shrink: 0; }
+  .signin .or { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-5) 0;
+    font: var(--text-caption); color: var(--text-tertiary); }
+  .signin .or::before, .signin .or::after { content: ""; flex: 1; border-top: 1px solid var(--border-subtle); }
+  /* The details step, kept short: its fields in pairs (name and user ID, each address or password beside its
+     confirmation), the phone number and the button across, rows close together, on phones too. A gray
+     Cancel under the button goes back to the first step. */
+  .signin form.pairs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .signin form.pairs .form-row { margin: 0; min-width: 0; }
+  .signin form.pairs .wide { grid-column: 1 / -1; }
+  .signin form.pairs .btn { margin-top: var(--space-1); }
+  .signin form .cancel { margin-top: 0; background: color-mix(in srgb, var(--text-primary) 6%, var(--surface-card));
+    color: var(--text-secondary); }
+  .signin form .cancel:hover { background: color-mix(in srgb, var(--text-primary) 10%, var(--surface-card)); color: var(--text-primary); }
+  .signin .form-row { margin-bottom: var(--space-5); }
+  .signin form .btn { margin-top: var(--space-2); }
+  #up-email-form .form-row { margin-bottom: var(--space-3); }
+  #up-email-form .btn { margin-top: 0; }
+  /* Signing in, condensed: the fields and the button stack close. The second step carries the address over into its own
+     field, gray and read only, and
+     asks the person to confirm they're a person above the button; a gray Cancel under it goes
+     back to the first step. */
+  .signin .input.who { color: var(--text-tertiary); background: color-mix(in srgb, var(--text-primary) 4%, var(--surface-card));
+    cursor: default; }
+  .signin .input.who:focus { border-color: var(--border-default); box-shadow: none; }
+  .signin .check { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); cursor: pointer;
+    font: var(--text-body-s); box-shadow: none; }
+  .signin .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-default); }
+  .signin form.tight .form-row { margin-bottom: var(--space-3); }
+  .signin form.tight .btn { margin-top: 0; }
+  .signin form.tight .cancel { margin-top: var(--space-3); }
+  .signin .input { width: 100%; box-sizing: border-box; }
+  .signin .hint { font: var(--text-caption); color: var(--text-tertiary); margin: var(--space-1) 0 0; }
+  @media (max-width: 640px) { .signin { padding: var(--space-12) 0 var(--space-16); } }
+</style>
+</head>
+<body>
+
+<header class="site-top">
+  <div class="wrap">
+    <a class="logo" href="./"><img src="ds/logo/belong-wordmark-small-ink.svg" alt="Belong" class="on-light" width="90" height="26"><img src="ds/logo/belong-wordmark-small-cream.svg" alt="Belong" class="on-dark" width="90" height="26"></a>
+    <nav aria-label="Site">
+      <a href="use.html">Usage</a>
+      <a href="signin.html" aria-current="page">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main class="signin">
+  <div class="wrap">
+    <h1>Sign in to Belong</h1>
+    <div class="tabs" role="tablist" aria-label="Sign in or create an account">
+      <button type="button" role="tab" id="tab-in" aria-controls="in" aria-selected="true" class="on">Sign in</button>
+      <button type="button" role="tab" id="tab-up" aria-controls="up" aria-selected="false" tabindex="-1">New user?</button>
+    </div>
+
+    <div class="panel" id="in" role="tabpanel" aria-labelledby="tab-in">
+      <div id="in-start">
+      <div class="others" id="in-others" hidden>
+        <button type="button" class="btn secondary block google" hidden><svg class="g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
+        <button type="button" class="btn secondary block" id="in-passkey" hidden>Sign in with a passkey</button>
+      </div>
+      <p class="or" id="in-or" hidden><span>or with your email</span></p>
+      <p class="text-error" id="in-start-err" role="alert" hidden></p>
+      <form class="tight" id="in-email-form">
+        <div class="form-row">
+          <label class="field-label" for="in-email">Email address</label>
+          <input class="input" id="in-email" type="email" autocomplete="username" required>
+        </div>
+        <button type="submit" class="btn block lg">Continue</button>
+      </form>
+      </div>
+
+      <div id="in-password-step" hidden>
+        <form class="tight" id="in-password-form" novalidate>
+          <div class="form-row">
+            <label class="field-label" for="in-email-2">Email address</label>
+            <input class="input who" id="in-email-2" type="email" autocomplete="username" readonly>
+          </div>
+          <div class="form-row">
+            <label class="field-label" for="in-password">Password</label>
+            <input class="input" id="in-password" type="password" autocomplete="current-password">
+          </div>
+          <label class="check card sm"><input type="checkbox" id="in-person"><span>Confirm you're a person</span></label>
+          <p class="text-error" id="in-err" role="alert" hidden></p>
+          <button type="submit" class="btn block lg" id="in-go">Sign in</button>
+          <button type="button" class="btn block lg cancel" id="in-back">Cancel</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel" id="up" role="tabpanel" aria-labelledby="tab-up" hidden>
+      <div id="up-start">
+      <div class="others">
+        <button type="button" class="btn secondary block google" hidden><svg class="g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
+        <a class="btn secondary block" href="use.html#connect-from-an-ai-assistant">Sign up through your own AI agent</a>
+      </div>
+      <p class="or"><span>or with your email</span></p>
+      <form id="up-email-form">
+        <div class="form-row">
+          <label class="field-label" for="up-email">Email address</label>
+          <input class="input" id="up-email" type="email" autocomplete="email" required>
+        </div>
+        <button type="submit" class="btn block lg">Create account</button>
+      </form>
+      <p class="or"><span>or get the Belong app</span></p>
+      <div class="stores">
+        <a class="store" href="https://apps.apple.com/"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg><span><small>Download on the</small>App Store</span></a>
+        <a class="store" href="https://play.google.com/store/apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"/></svg><span><small>Get it on</small>Google Play</span></a>
+      </div>
+      </div>
+
+      <div id="up-details" hidden>
+        <form class="pairs" id="up-details-form" novalidate>
+          <div class="form-row">
+            <label class="field-label" for="up-name">Name</label>
+            <input class="input" id="up-name" autocomplete="name">
+          </div>
+          <div class="form-row">
+            <label class="field-label" for="up-id">User ID</label>
+            <input class="input" id="up-id" autocomplete="username" autocapitalize="none" spellcheck="false">
+          </div>
+          <div class="form-row with-email">
+            <label class="field-label" for="up-email-2">Email address</label>
+            <input class="input" id="up-email-2" type="email" autocomplete="email" data-nocopy>
+          </div>
+          <div class="form-row with-email">
+            <label class="field-label" for="up-email-3">Confirm email address</label>
+            <input class="input" id="up-email-3" type="email" autocomplete="off" data-nopaste>
+          </div>
+          <div class="form-row">
+            <label class="field-label" for="up-birthday">Birthday</label>
+            <input class="input" id="up-birthday" type="date" autocomplete="bday">
+          </div>
+          <div class="form-row">
+            <label class="field-label" for="up-gender">Gender</label>
+            <select class="select input" id="up-gender"><option value=""></option><option value="woman">Female</option><option value="man">Male</option><option value="nonbinary">Other</option></select>
+          </div>
+          
+          <div class="form-row with-email">
+            <label class="field-label" for="up-password">Password</label>
+            <input class="input" id="up-password" type="password" autocomplete="new-password" data-nocopy>
+          </div>
+          <div class="form-row with-email">
+            <label class="field-label" for="up-password-2">Confirm password</label>
+            <input class="input" id="up-password-2" type="password" autocomplete="new-password" data-nopaste>
+          </div>
+          <p class="text-error wide" id="up-err" role="alert" hidden></p>
+          <button type="submit" class="btn block lg wide" id="up-go">Create account</button>
+          <button type="button" class="btn block lg wide cancel" id="up-cancel">Cancel</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+  /* The two tabs: one panel at a time, arrow keys move between them. */
+  (() => {
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const pick = t => tabs.forEach(b => {
+      const on = b === t;
+      b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1;
+      document.getElementById(b.getAttribute("aria-controls")).hidden = !on;
+    });
+    tabs.forEach((t, i) => {
+      t.addEventListener("click", () => pick(t));
+      t.addEventListener("keydown", e => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        const next = tabs[(i + 1) % tabs.length]; pick(next); next.focus();
+      });
+    });
+    if (location.hash === "#create") pick(tabs[1]);
+
+    /* Signing in by email: the address first, then the password and the check that it's a person. */
+    const inStart = document.getElementById("in-start"), inPass = document.getElementById("in-password-step");
+    document.getElementById("in-email-form").addEventListener("submit", e => {
+      e.preventDefault();
+      document.getElementById("in-email-2").value = document.getElementById("in-email").value;
+      inStart.hidden = true; inPass.hidden = false; document.getElementById("in-password").focus();
+    });
+    document.getElementById("in-back").addEventListener("click", () => {
+      inStart.hidden = false; inPass.hidden = true; document.getElementById("in-email").focus();
+    });
+
+    /* A new account by email: the address first, then the rest on a second step that carries it over. */
+    const start = document.getElementById("up-start"), details = document.getElementById("up-details");
+    const step = second => { start.hidden = second; details.hidden = !second; };
+    document.getElementById("up-email-form").addEventListener("submit", e => {
+      e.preventDefault();
+      document.getElementById("up-email-2").value = document.getElementById("up-email").value;
+      step(true); document.getElementById("up-name").focus();
+    });
+    document.getElementById("up-cancel").addEventListener("click", () => { step(false); document.getElementById("up-email").focus(); });
+    // Typed twice, by hand: the email address and password can't be copied out, and their confirmations can't be
+    // pasted or dropped into.
+    document.querySelectorAll("[data-nocopy]").forEach(f => ["copy", "cut"].forEach(t => f.addEventListener(t, e => e.preventDefault())));
+    document.querySelectorAll("[data-nopaste]").forEach(f => ["paste", "drop"].forEach(t => f.addEventListener(t, e => e.preventDefault())));
+
+    /* The account site (app.belong.one) does the signing in: this page only calls its sign-in routes, which answer
+       this site's own address and nothing else, and then goes there. Nothing here reads or keeps a token: the
+       session is the app's own cookie. */
+    const APP = document.querySelector('meta[name="belong-app"]').content;
+    const $ = id => document.getElementById(id);
+    const say = (id, text) => { const el = $(id); el.textContent = text || ""; el.hidden = !text; };
+    // Signed in, back to the website's landing page, its menu now the account's (_account-menu.html); a tour link
+    // (app/#tour) that came here to sign in goes on to the tour, the one fixed name carried.
+    const AFTER = location.hash === "#tour" ? APP + "/#tour" : "./";
+    const home = () => location.assign(AFTER);
+    async function call(path, body, err) {
+      try {
+        const r = await fetch(APP + path, { method: body === undefined ? "GET" : "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+        let data = {};
+        try { data = await r.json(); } catch (_) { data = {}; }
+        if (!r.ok) { if (err) say(err, data.error || "That didn't work. Try again."); return null; }
+        if (err) say(err, "");
+        return data;
+      } catch (_) { if (err) say(err, "Belong couldn't be reached. Try again."); return null; }
+    }
+    // The check that it's a person: a small puzzle from the app, solved here; only its answer is sent.
+    function zeroBits(bytes) {
+      let n = 0;
+      for (const b of bytes) { if (b === 0) { n += 8; continue; } return n + Math.clz32(b) - 24; }
+      return n;
+    }
+    async function solve(p) {
+      const enc = new TextEncoder();
+      for (let n = 0; ; n++) {
+        const d = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(p.challenge + ":" + n)));
+        if (zeroBits(d) >= p.bits) return { challenge: p.challenge, counter: String(n) };
+        if (n % 2000 === 1999) await new Promise(r => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      }
+    }
+    const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+
+    let viaGoogle = false, codeSent = false;
+    (async () => {
+      const me = await call("/auth/whoami");
+      if (!me) return;
+      if (me.signed_in) return location.replace(AFTER);
+      document.querySelectorAll(".google").forEach(b => { b.hidden = !me.google; });
+      $("in-passkey").hidden = !(me.passkeys && window.PublicKeyCredential);
+      // Signing in by email alone: no empty box above it and no "or" with nothing before it.
+      $("in-others").hidden = $("in-or").hidden = !(me.google || !$("in-passkey").hidden);
+      if (location.hash === "#google-failed") say("in-start-err", "That didn't work. Try again.");
+      if (location.hash === "#finish") {
+        const p = await call("/auth/pending", {});
+        if (p && p.pending) {
+          viaGoogle = true;
+          document.querySelectorAll(".with-email").forEach(r => { r.hidden = true; });
+          pick(tabs[1]); step(true); $("up-name").focus();
+        }
+      }
+    })();
+    document.querySelectorAll(".google").forEach(b => b.addEventListener("click", () => location.assign(APP + "/auth/google/start?to=dashboard")));
+
+    $("in-passkey").addEventListener("click", async () => {
+      const o = await call("/auth/passkey/options", {}, "in-start-err");
+      if (!o || !o.passkey) return;
+      let cred;
+      try {
+        cred = await navigator.credentials.get({ publicKey: { challenge: unb64u(o.passkey.challenge), rpId: o.passkey.rpId,
+          timeout: o.passkey.timeout, userVerification: "required", allowCredentials: [] } });
+      } catch (_) { return; }
+      const r = cred.response;
+      if (await call("/auth/passkey/finish", { rawId: b64u(cred.rawId), response: { clientDataJSON: b64u(r.clientDataJSON),
+        authenticatorData: b64u(r.authenticatorData), signature: b64u(r.signature),
+        userHandle: r.userHandle ? b64u(r.userHandle) : "" } }, "in-start-err")) home();
+    });
+
+    $("in-password-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      if (!$("in-person").checked) return say("in-err", "Confirm you're a person first.");
+      const p = await call("/auth/puzzle", {}, "in-err");
+      if (!p) return;
+      $("in-go").disabled = true;
+      let proof;
+      try { proof = await solve(p.puzzle); } finally { $("in-go").disabled = false; }
+      if (await call("/auth/signin", { email: $("in-email-2").value.trim(), password: $("in-password").value, proof }, "in-err")) home();
+    });
+
+    $("up-details-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const body = { name: $("up-name").value.trim(), username: $("up-id").value.trim() || null,
+                     birthday: $("up-birthday").value, gender: $("up-gender").value };
+      if (viaGoogle) body.via = "google";
+      else {
+        if ($("up-email-2").value.trim() !== $("up-email-3").value.trim()) return say("up-err", "The two email addresses aren't the same.");
+        if ($("up-password").value !== $("up-password-2").value) return say("up-err", "The two passwords aren't the same.");
+        Object.assign(body, { email: $("up-email-2").value.trim(), password: $("up-password").value,
+                              password_again: $("up-password-2").value });
+      }
+      const number = $("up-number");
+      if (number) {  // text messages on: a code to the number first, then the code with the rest
+        if (!codeSent) {
+          if (!(await call("/auth/sms_start", { number: number.value.trim() }, "up-err"))) return;
+          codeSent = true; $("up-code-row").hidden = false; $("up-code").focus(); return;
+        }
+        Object.assign(body, { number: number.value.trim(), code: $("up-code").value.trim() });
+      } else {
+        const p = await call("/auth/puzzle", { for: "signup" }, "up-err");
+        if (!p) return;
+        $("up-go").disabled = true;
+        try { body.proof = await solve(p.puzzle); } finally { $("up-go").disabled = false; }
+      }
+      if (await call("/auth/signup", body, "up-err")) home();
+    });
+  })();
+</script>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <a class="logo" href="./"><img src="ds/logo/belong-wordmark-small-cream.svg" alt="Belong" width="48" height="14"></a>
+  </div>
+</footer>
+</body>
+</html>

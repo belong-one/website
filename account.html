@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Belong account</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="ds/tokens.css">
+<link rel="stylesheet" href="ds/belong.css">
+<link rel="stylesheet" href="site.css">
+<link rel="icon" type="image/svg+xml" href="ds/logo/belong-icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="belong-app" content="https://app.belong.one">
+<meta name="robots" content="noindex">
+<style>
+  /* A light password gate before launch, by the owner's choice: every page asks once, then remembers in this browser.
+     It only hides the page; anyone who reads the source or the plain text files gets past it. */
+  html.gated body > :not(.gate) { display: none !important; }
+  .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: var(--space-6);
+    background: var(--surface-app); }
+  .gate form { width: 100%; max-width: 320px; }
+  .gate img { display: block; height: 30px; width: auto; margin: 0 auto var(--space-8); }
+  /* The wordmark for the ground's theme (the same rule the tokens switch by): ink on light, cream on dark. */
+  .gate .gate-dark { display: none; }
+  :root[data-theme="dark"] .gate .gate-light { display: none; }
+  :root[data-theme="dark"] .gate .gate-dark { display: block; }
+  .gate .input { margin-bottom: var(--space-3); }
+  .gate .text-error { margin: var(--space-3) 0 0; font: var(--text-body-s); }
+</style>
+<script>
+  (() => {
+    // SHA-256 of the password, never the password itself. Computed here rather than with crypto.subtle, which a
+    // page on plain http (the local preview on a phone) doesn't have.
+    const WANT = "9c000e9da53b61e498a4914c00a7e42e7b2e770b0383b2d19fe253b65764746b", KEY = "belong-gate";
+    const sha256 = text => {
+      const primes = [];
+      for (let n = 2; primes.length < 64; n++) if (primes.every(p => n % p)) primes.push(n);
+      const frac = x => ((x - Math.floor(x)) * 2 ** 32) >>> 0, rotr = (x, n) => (x >>> n) | (x << (32 - n));
+      const K = primes.map(p => frac(Math.cbrt(p))), H = primes.slice(0, 8).map(p => frac(Math.sqrt(p)));
+      const bytes = new TextEncoder().encode(text), len = Math.ceil((bytes.length + 9) / 64) * 64;
+      const buf = new Uint8Array(len), view = new DataView(buf.buffer), w = new Array(64);
+      buf.set(bytes); buf[bytes.length] = 0x80; view.setUint32(len - 4, bytes.length * 8);
+      for (let at = 0; at < len; at += 64) {
+        for (let i = 0; i < 64; i++) {
+          if (i < 16) { w[i] = view.getUint32(at + i * 4); continue; }
+          const a = w[i - 15], b = w[i - 2];
+          w[i] = (w[i - 16] + (rotr(a, 7) ^ rotr(a, 18) ^ (a >>> 3)) + w[i - 7] + (rotr(b, 17) ^ rotr(b, 19) ^ (b >>> 10))) | 0;
+        }
+        let [a, b, c, d, e, f, g, h] = H;
+        for (let i = 0; i < 64; i++) {
+          const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) | 0;
+          const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+          h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+        }
+        [a, b, c, d, e, f, g, h].forEach((v, i) => { H[i] = (H[i] + v) | 0; });
+      }
+      return H.map(x => (x >>> 0).toString(16).padStart(8, "0")).join("");
+    };
+    try { if (localStorage.getItem(KEY) === WANT) return; } catch (e) {}
+    document.documentElement.classList.add("gated");
+    addEventListener("DOMContentLoaded", () => {
+      const gate = document.createElement("div");
+      gate.className = "gate";
+      gate.innerHTML = '<form><img class="gate-light" src="ds/logo/belong-wordmark-small-ink.svg" alt="Belong" width="90" height="26">' +
+        '<img class="gate-dark" src="ds/logo/belong-wordmark-small-cream.svg" alt="Belong" width="90" height="26">' +
+        '<label class="field-label" for="gate-password">Password</label>' +
+        '<input class="input" id="gate-password" type="password" autocomplete="current-password" required>' +
+        '<button type="submit" class="btn block lg">Enter</button>' +
+        '<p class="text-error" role="alert" hidden>That isn\'t it.</p></form>';
+      document.body.prepend(gate);
+      const field = gate.querySelector("input"), wrong = gate.querySelector("p");
+      field.focus();
+      gate.querySelector("form").addEventListener("submit", e => {
+        e.preventDefault();
+        if (sha256(field.value) !== WANT) { wrong.hidden = false; field.select(); return; }
+        try { localStorage.setItem(KEY, WANT); } catch (e) {}
+        gate.remove();
+        document.documentElement.classList.remove("gated");
+      });
+    });
+  })();
+</script>
+<style>
+  /* The account page, on the website (TRUST.md #130): part of the site, under its own header and menu, with the
+     account's real data from the app (APP's GET /me/state and POST /me/..., this site's exact origin only). A list of its parts on the left (a row of links across the top on phones) and each part as a card:
+     the account itself, the AIs connected to it, the plan and the badges the person holds. Each row is a label, what
+     it holds and one quiet action; a change opens in place. Removing, disconnecting, leaving, logging out everywhere and
+     deleting ask first. The one coral button is the plan's (or, for an account with no password yet, Add a password).
+     Its script is _account-script.html, inline. The website can't send a no-framing header, so the page shows nothing and does nothing
+     inside a frame: it stays hidden until its script has seen it is the top window (.account.ready). */
+  body { display: flex; flex-direction: column; min-height: 100svh; }
+  .account { visibility: hidden; }
+  .account.ready { visibility: visible; }
+  [hidden] { display: none !important; }
+
+  .account { flex: 1; padding: var(--space-12) 0 var(--space-16); }
+  .account .layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: var(--space-10); align-items: start; }
+  .account h1 { font: var(--text-heading-l); margin: 0 0 var(--space-1); }
+  .account .who { margin: 0 0 var(--space-8); color: var(--text-secondary); font: var(--text-body-s); }
+  .parts { position: sticky; top: var(--space-6); display: grid; gap: var(--space-1); }
+  .parts a { font: var(--text-body-s); font-weight: 500; color: var(--text-secondary); text-decoration: none;
+    padding: var(--space-2) var(--space-3); border-left: 2px solid transparent; }
+  .parts a:hover { color: var(--text-primary); }
+  .parts a.on { color: var(--text-primary); border-left-color: var(--border-accent); }
+  .part { margin-bottom: var(--space-6); scroll-margin-top: var(--space-6); }
+  .part h2 { font: var(--text-heading-m); margin: 0 0 var(--space-1); }
+  .part > .note { margin: 0 0 var(--space-5); color: var(--text-secondary); font: var(--text-body-s); }
+  .part h3 { font: var(--text-label); color: var(--text-secondary); margin: var(--space-6) 0 var(--space-2); }
+  .row { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: var(--space-4); align-items: center;
+    padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); }
+  .row:first-of-type { border-top: 0; }
+  .row .k { font: var(--text-label); color: var(--text-secondary); }
+  .row .v { font: var(--text-body-s); overflow-wrap: anywhere; }
+  .row .v small { display: block; font: var(--text-caption); color: var(--text-tertiary); }
+  .row.wide { grid-template-columns: minmax(0, 1fr) auto; }
+  .edit { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .edit .input { flex: 1; min-width: 8em; padding: 6px 10px; }
+  .row .btn.sm { white-space: nowrap; }
+  .icon { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px;
+    border-radius: var(--radius-md); color: color-mix(in srgb, var(--text-tertiary) 60%, transparent); cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-standard); }
+  .icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round;
+    stroke-linejoin: round; }
+  .icon:hover { color: var(--accent-default); }
+  .icon:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .empty { margin: 0; padding: var(--space-3) 0; font: var(--text-body-s); color: var(--text-tertiary); }
+  .more { margin-top: var(--space-3); }
+  .out { margin-top: var(--space-6); padding-top: var(--space-2); border-top: 1px solid var(--border-default); }
+  .out .row:first-of-type { border-top: 0; }
+  .out .k { color: var(--text-primary); font: var(--text-body-s); font-weight: 600; }
+  .out .row { grid-template-columns: minmax(0, 1fr) auto; }
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .plan { border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-4); }
+  .plan.now { border-color: var(--border-accent); background: var(--surface-raised); }
+  .plan .top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+  .plan b { font: var(--text-heading-s); }
+  .plan .price { font: var(--text-body-s); color: var(--text-secondary); margin: var(--space-1) 0 var(--space-2); }
+  .plan p { margin: 0; font: var(--text-caption); color: var(--text-secondary); }
+  .plan .btn { margin-top: var(--space-4); }
+  .use .top { display: flex; justify-content: space-between; font: var(--text-label); margin-bottom: var(--space-2); }
+  .use .top span { color: var(--text-secondary); }
+  .meter { height: 8px; border-radius: var(--radius-pill); background: var(--surface-sunken); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--accent-ai); border-radius: inherit; }
+  .addpw-inline { padding: var(--space-3) 0 var(--space-4); border-bottom: 1px solid var(--border-subtle); }
+  .addpw-inline form { display: grid; gap: var(--space-3); max-width: 420px; }
+  .addpw-actions { display: flex; gap: var(--space-2); }
+  .text-link { all: unset; cursor: pointer; font: var(--text-label); font-weight: 600; color: var(--text-accent); justify-self: end; }
+  .text-link:hover { text-decoration: underline; }
+  .text-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .err { font: var(--text-body-s); color: var(--text-error); margin: var(--space-3) 0 0; }
+  dialog { border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-6);
+    max-width: min(420px, calc(100vw - 2 * var(--page-margin))); box-shadow: var(--shadow-lg); color: var(--text-primary);
+    background: var(--surface-card); }
+  /* The veil behind a question: ink at 40% on the light theme, the system's overlay on the dark one. */
+  dialog::backdrop { background: color-mix(in srgb, var(--sf-ink-900) 40%, transparent); }
+  :root[data-theme="dark"] dialog::backdrop { background: var(--surface-overlay); }
+  dialog h2 { font: var(--text-heading-s); margin: 0 0 var(--space-2); }
+  dialog p { margin: 0 0 var(--space-5); font: var(--text-body-s); color: var(--text-secondary); }
+  dialog .actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+  @media (max-width: 760px) {
+    .account { padding-top: var(--space-6); }
+    .account .layout { grid-template-columns: 1fr; gap: var(--space-4); }
+    .parts { position: static; display: flex; overflow-x: auto; gap: var(--space-4); border-bottom: 1px solid var(--border-subtle);
+      margin: 0 calc(-1 * var(--page-margin)); padding: 0 var(--page-margin); scrollbar-width: none; }
+    .parts a { white-space: nowrap; padding: var(--space-2) 0; border-left: 0; border-bottom: 2px solid transparent; }
+    .parts a.on { border-bottom-color: var(--border-accent); }
+    .part.card { padding: var(--space-5); }
+    .row { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); }
+    .row .k { grid-column: 1 / -1; }
+    .plans { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="site-top">
+  <div class="wrap">
+    <a class="logo" href="./"><img src="ds/logo/belong-wordmark-small-ink.svg" alt="Belong" class="on-light" width="90" height="26"><img src="ds/logo/belong-wordmark-small-cream.svg" alt="Belong" class="on-dark" width="90" height="26"></a>
+    <nav aria-label="Site">
+      <a href="use.html">Usage</a>
+      <a href="signin.html" id="nav-signin">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main class="account">
+  <div class="wrap">
+    <h1>Your account</h1>
+    <p class="who" id="who"></p>
+    <p class="err" id="page-err" role="alert" hidden></p>
+
+
+    <div class="layout">
+      <nav class="parts" aria-label="Account">
+        <a href="#details">Account</a>
+        <a href="#ais">Connected AIs</a>
+        <a href="#plan">Plan and billing</a>
+        <a href="#held">Badges you hold</a>
+        <a href="#issued">Issue badges</a>
+      </nav>
+
+      <div>
+        <section class="part card" id="details" aria-labelledby="details-title">
+          <h2 id="details-title">Account</h2>
+          <p class="note">Only you see these. Your matches see only what your listings show.</p>
+          <div class="row" data-edit="name"><span class="k">Name</span><span class="v" id="v-name"></span><button type="button" class="icon" aria-label="Change name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></button></div>
+          <div class="row" data-edit="username"><span class="k">Username</span><span class="v" id="v-username"></span><button type="button" class="icon" aria-label="Change username"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></button></div>
+          <div class="row"><span class="k">Email address</span><span class="v" id="v-email"></span><span></span></div>
+          <div class="row" data-edit="password" id="pw-row"><span class="k">Password</span><span class="v" id="v-password"></span><button type="button" class="icon" id="pw-change" aria-label="Change password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></button><button type="button" class="text-link" id="addpw-open" hidden>Add</button></div>
+          <div class="addpw-inline" id="addpw" hidden>
+            <form id="addpw-form" novalidate>
+              <div id="addpw-email-row"><label class="field-label" for="addpw-email">Email address</label>
+                <input class="input" id="addpw-email" type="email" autocomplete="username"></div>
+              <div><label class="field-label" for="addpw-new">Password</label>
+                <input class="input" id="addpw-new" type="password" autocomplete="new-password"></div>
+              <div><label class="field-label" for="addpw-again">Confirm password</label>
+                <input class="input" id="addpw-again" type="password" autocomplete="new-password"></div>
+              <div class="addpw-actions"><button class="btn secondary sm" type="submit" id="addpw-save">Add password</button>
+                <button class="btn ghost sm" type="button" id="addpw-cancel">Cancel</button></div>
+              <p class="err" id="addpw-err" role="alert" hidden></p>
+            </form>
+          </div>
+          <div class="row" id="google-row" hidden><span class="k">Google</span><span class="v">Signs you in</span><span></span></div>
+          <p class="err" id="details-err" role="alert" hidden></p>
+
+          <div id="passkeys-part" hidden>
+            <h3>Passkeys</h3>
+            <div id="passkeys"></div>
+            <p class="empty" id="passkeys-empty" hidden>No passkeys.</p>
+            <button type="button" class="btn secondary sm more" id="passkey-add">Add a passkey</button>
+          </div>
+
+          <div class="out">
+            <div class="row"><span class="k">Log out</span><button type="button" class="btn secondary sm" id="logout">Log out</button></div>
+            <div class="row"><span class="k">Log out everywhere</span><button type="button" class="btn secondary sm" data-ask="logout_all">Log out everywhere</button></div>
+            <div class="row"><span class="k">Delete account</span><button type="button" class="btn destructive sm" data-ask="delete">Delete account</button></div>
+          </div>
+        </section>
+
+        <section class="part card" id="ais" aria-labelledby="ais-title">
+          <h2 id="ais-title">Connected AIs</h2>
+          <p class="note">AI agents you've let use Belong for you.</p>
+          <div id="ai-list"></div>
+          <p class="empty" id="ai-empty" hidden>No AIs connected.</p>
+          <div class="row wide"><span class="v">Connect an AI<small id="connector"></small></span><span></span></div>
+        </section>
+
+        <section class="part card" id="plan" aria-labelledby="plan-title">
+          <h2 id="plan-title">Plan and billing</h2>
+          <p class="note">Matching, answering matches and chats are free on every plan.</p>
+          <div class="plans">
+            <div class="plan" id="plan-free">
+              <div class="top"><b>Free</b><span class="badge accent" id="free-now" hidden>Your plan</span></div>
+              <p class="price">$0</p>
+              <p>Belong's agents, within a daily allowance.</p>
+            </div>
+            <div class="plan" id="plan-monthly">
+              <div class="top"><b>Monthly</b><span class="badge accent" id="monthly-now" hidden>Your plan</span></div>
+              <p class="price" id="monthly-price"></p>
+              <p>For heavy use of Belong's agents.</p>
+              <button type="button" class="btn block" id="subscribe" hidden>Switch to Monthly</button>
+              <button type="button" class="btn secondary block" id="end-plan" hidden>Back to Free</button>
+            </div>
+          </div>
+          <div class="use">
+            <div class="top">Today's allowance <span id="use-text"></span></div>
+            <div class="meter" role="meter" aria-label="Today's allowance used" aria-valuemin="0" aria-valuemax="100" id="meter"><i id="meter-bar"></i></div>
+          </div>
+          
+          <p class="err" id="plan-err" role="alert" hidden></p>
+        </section>
+
+        <section class="part card" id="held" aria-labelledby="held-title">
+          <h2 id="held-title">Badges you hold</h2>
+          <p class="note">Nobody else sees who holds a private badge.</p>
+          <div id="held-list"></div>
+          <p class="empty" id="held-empty" hidden>You don't hold any badges.</p>
+          <form class="edit more" id="badge-code" novalidate>
+            <input class="input" id="badge-code-text" aria-label="Invite code" autocomplete="off" spellcheck="false">
+            <button class="btn secondary sm" type="submit">Add a badge</button>
+          </form>
+          <div class="row wide" id="badge-offer" hidden><span class="v" id="badge-offer-text"></span>
+            <span class="edit"><button type="button" class="btn secondary sm" id="badge-accept">Accept</button>
+            <button type="button" class="btn secondary sm" id="badge-decline">Not now</button></span></div>
+          <p class="err" id="held-err" role="alert" hidden></p>
+        </section>
+
+        <section class="part card" id="issued" aria-labelledby="issued-title">
+          <h2 id="issued-title">Issue badges</h2>
+          <p class="note">For your group, club or company, with an invite link or code. Never who holds them.</p>
+          <a class="btn secondary sm more" href="https://app.belong.one/badges">Open the badge dashboard</a>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<dialog id="ask" aria-labelledby="ask-title">
+  <form method="dialog">
+    <h2 id="ask-title"></h2>
+    <p id="ask-text"></p>
+    <div class="actions">
+      <button type="submit" value="no" class="btn secondary sm">Cancel</button>
+      <button type="submit" value="yes" class="btn destructive sm" id="ask-yes"></button>
+    </div>
+  </form>
+</dialog>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <a class="logo" href="./"><img src="ds/logo/belong-wordmark-small-cream.svg" alt="Belong" width="48" height="14"></a>
+  </div>
+</footer>
+<script>
+  /* Signed in at the account site? The nav's Sign in becomes the account menu: Account (this site's own account page),
+     Web app, Admin (staff accounts only) and Log out. Only asks the app's whoami, which answers this site's own address alone (signed in
+     or not, staff or not); nothing is read or kept here. Log out ends this browser's session at the app. */
+  (async () => {
+    const m = document.querySelector('meta[name="belong-app"]'), a = document.getElementById("nav-signin");
+    if (!m || !a) return;
+    const APP = m.content;
+    let me;
+    try {
+      const r = await fetch(APP + "/auth/whoami", { credentials: "include" });
+      if (!r.ok) return;
+      me = await r.json();
+    } catch (_) { return; /* the app is unreachable: keep Sign in */ }
+    if (!me || !me.signed_in) return;
+    const wrap = document.createElement("div");
+    wrap.className = "acct";
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "menu-btn"; btn.id = "acct-btn";
+    btn.setAttribute("aria-label", "Menu"); btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-controls", "acct-menu");
+    btn.innerHTML = "<span></span><span></span><span></span>";
+    const menu = document.createElement("div");
+    menu.className = "acct-menu"; menu.id = "acct-menu"; menu.hidden = true;
+    const items = [["Account", "account.html"], ["Web app", APP + "/"]];
+    if (me.staff) items.push(["Admin", APP + "/staff"]);
+    for (const [label, href] of items) {
+      const link = document.createElement("a");
+      link.href = href; link.textContent = label;
+      menu.append(link);
+    }
+    const out = document.createElement("button");
+    out.type = "button"; out.className = "sep"; out.id = "acct-logout"; out.textContent = "Log out";
+    menu.append(out);
+    wrap.append(btn, menu);
+    a.replaceWith(wrap);
+    const show = open => { menu.hidden = !open; btn.setAttribute("aria-expanded", String(open)); };
+    btn.addEventListener("click", e => { e.stopPropagation(); show(menu.hidden); if (!menu.hidden) menu.querySelector("a").focus(); });
+    document.addEventListener("click", e => { if (!wrap.contains(e.target)) show(false); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !menu.hidden) { show(false); btn.focus(); } });
+    out.addEventListener("click", async () => {
+      try {
+        await fetch(APP + "/auth/logout", { method: "POST", credentials: "include",
+                                            headers: { "Content-Type": "application/json" }, body: "{}" });
+      } catch (_) { /* reload all the same: the menu shows what the app says */ }
+      location.reload();
+    });
+  })();
+</script>
+<script>
+// The account page's script, inline as every site page's (account.html; the app's server.account_page and /me/..., which answer this site's
+// exact origin with credentials). Every value from the server is written with textContent, never as markup. Signed
+// out, the page goes to the sign-in page. Inside a frame it does nothing at all: the website can't send a no-framing
+// header, so the page stays hidden and no action is ever bound unless it is the top window.
+(() => {
+  "use strict";
+  let top = false;
+  try { top = window.top === window.self; } catch (_) { top = false; }
+  if (!top) return;
+  const APP = document.querySelector('meta[name="belong-app"]').content;
+  document.querySelector(".account").classList.add("ready");
+  const $ = id => document.getElementById(id);
+  let state = null;
+
+  const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+  const day = d => { if (!d) return ""; const t = new Date(d + "T12:00:00Z"); return t.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }); };
+
+  function say(where, text) { const el = $(where); el.textContent = text || ""; el.hidden = !text; }
+
+  async function call(path, body, where) {
+    let r, data = {};
+    try {
+      r = await fetch(APP + path, { method: body === undefined ? "GET" : "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+      try { data = await r.json(); } catch (_) { data = {}; }
+    } catch (_) { say(where || "page-err", "Belong couldn't be reached. Try again."); return null; }
+    if (r.status === 401) { location.replace("signin.html"); return null; }
+    if (!r.ok) { say(where || "page-err", data.error || "That didn't work. Try again."); return null; }
+    if (where) say(where, "");
+    if (typeof data.next === "string" && data.account === null) { location.replace(data.next); return null; }
+    if (data.account) render(data.account);
+    return data;
+  }
+
+  function row(text, small, button) {
+    const r = document.createElement("div"); r.className = "row wide";
+    const v = document.createElement("span"); v.className = "v";
+    const b = document.createElement("b"); b.textContent = text; v.append(b);
+    if (small) { const s = document.createElement("small"); s.textContent = small; v.append(s); }
+    r.append(v, button || document.createElement("span"));
+    return r;
+  }
+
+  function trash(label) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "icon"; b.setAttribute("aria-label", label);
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>';
+    return b;
+  }
+
+  function render(a) {
+    state = a;
+    $("who").textContent = "Signed in as " + a.first_name;
+    $("v-name").textContent = a.first_name;
+    $("v-username").textContent = a.username || "";
+    $("v-email").textContent = a.login_email || "";
+    $("v-password").textContent = a.password_set ? (a.password_on ? "Changed " + day(a.password_on) : "Set") : "None";
+    $("google-row").hidden = !a.google;
+    const needs = !a.password_set && !a.google;
+    // No password yet: a small "Add" on the Password row opens the form in place.
+    $("addpw-open").hidden = !needs;
+    $("pw-change").hidden = needs;
+    if (!needs) $("addpw").hidden = true;
+    $("addpw-email-row").hidden = !!a.login_email;
+    // Passkeys
+    $("passkeys-part").hidden = !a.passkeys_here && !a.passkeys.length;
+    $("passkey-add").hidden = !a.passkeys_here;
+    const pk = $("passkeys"); pk.textContent = "";
+    for (const k of a.passkeys) {
+      const b = trash("Remove");
+      b.addEventListener("click", () => ask("passkey", k.label, () => removePasskey(k.id)));
+      pk.append(row(k.label, "Added " + day(k.added) + (k.last_used ? " · last used " + day(k.last_used) : ""), b));
+    }
+    $("passkeys-empty").hidden = a.passkeys.length > 0;
+    // Connected AIs
+    const ai = $("ai-list"); ai.textContent = "";
+    for (const c of a.connected_ais) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "btn secondary sm"; b.textContent = "Disconnect";
+      b.addEventListener("click", () => ask("ai", c.label, () => call("/me/disconnect_ai", { id: c.id })));
+      ai.append(row(c.label, "Connected " + day(c.connected_on), b));
+    }
+    $("ai-empty").hidden = a.connected_ais.length > 0;
+    $("connector").textContent = a.connector || "";
+    // Plan
+    const monthly = a.plan === "monthly";
+    $("plan-free").classList.toggle("now", !monthly); $("free-now").hidden = monthly;
+    $("plan-monthly").classList.toggle("now", monthly); $("monthly-now").hidden = !monthly;
+    $("monthly-price").textContent = a.prices && a.prices.monthly_usd != null ? "$" + a.prices.monthly_usd + " a month" : "";
+    $("subscribe").hidden = monthly; $("end-plan").hidden = !monthly;
+    $("subscribe").classList.remove("secondary");
+    if ($("verify-row")) $("verify-row").hidden = !!a.verified;  // one coral button: Add a password comes first
+    const u = a.usage || { used: 0, allowance: 1 };
+    const pct = Math.min(100, Math.round(100 * (u.used || 0) / Math.max(1, u.allowance || 1)));
+    $("use-text").textContent = pct + "% used";
+    $("meter").setAttribute("aria-valuenow", String(pct));
+    $("meter-bar").style.width = pct + "%";
+    // Badges
+    const held = $("held-list"); held.textContent = "";
+    const badges = a.badges || { held: [] };
+    for (const h of badges.held) {
+      const b = trash("Leave");
+      b.addEventListener("click", () => ask("badge", h.name, () => call("/me/badge/leave", { number: h.number }, "held-err")));
+      held.append(row(h.name + " · " + h.issuer_name, h.description || "", b));
+    }
+    $("held-empty").hidden = badges.held.length > 0;
+    $("badge-code").hidden = !badges.can_hold;
+    const offer = badges.offer;
+    $("badge-offer").hidden = !offer;
+    if (offer) $("badge-offer-text").textContent = (offer.name || "") + " · " + (offer.issuer_name || "");
+  }
+
+  // A change opens in place: the value becomes a field with Save and Cancel. A new password is typed twice, after the
+  // current one.
+  document.querySelectorAll("[data-edit]").forEach(r => {
+    const kind = r.dataset.edit, v = r.querySelector(".v"), change = r.querySelector("button");
+    change.addEventListener("click", () => {
+      const box = document.createElement("form"); box.className = "edit"; box.noValidate = true;
+      const field = (label, type, value, auto) => {
+        const f = document.createElement("input"); f.className = "input"; f.type = type; f.setAttribute("aria-label", label);
+        f.placeholder = label; f.value = value || ""; if (auto) f.autocomplete = auto; box.append(f); return f;
+      };
+      let fields;
+      if (kind === "password") fields = [field("Current password", "password", "", "current-password"),
+        field("New password", "password", "", "new-password"), field("Confirm password", "password", "", "new-password")];
+      else fields = [field(kind === "name" ? "Name" : "Username", "text", v.textContent)];
+      const save = document.createElement("button"); save.className = "btn secondary sm"; save.textContent = "Save";
+      const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "btn secondary sm"; cancel.textContent = "Cancel";
+      box.append(save, cancel);
+      const done = () => { box.replaceWith(v); change.hidden = false; };
+      box.addEventListener("submit", async e => {
+        e.preventDefault();
+        const body = kind === "password" ? { current: fields[0].value, new: fields[1].value, again: fields[2].value }
+          : { [kind]: fields[0].value.trim() };
+        if (await call("/me/" + kind, body, "details-err")) done();
+      });
+      cancel.addEventListener("click", () => { say("details-err", ""); done(); });
+      v.replaceWith(box); change.hidden = true; fields[0].focus();
+    });
+  });
+
+  $("addpw-open").addEventListener("click", () => { $("addpw").hidden = false; $("addpw-open").hidden = true; ($("addpw-email-row").hidden ? $("addpw-new") : $("addpw-email")).focus(); });
+  $("addpw-cancel").addEventListener("click", () => { $("addpw").hidden = true; $("addpw-open").hidden = false; $("addpw-open").focus(); });
+  $("addpw-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    await call("/me/password", { email: $("addpw-email").value.trim(), new: $("addpw-new").value,
+                                 again: $("addpw-again").value }, "addpw-err");
+  });
+
+  // Asking first.
+  const dlg = $("ask");
+  const words = {
+    passkey: n => [`Remove the passkey ${n}?`, "You won't be able to sign in with it any more.", "Remove"],
+    ai: n => [`Disconnect ${n}?`, `${n} won't be able to use Belong for you until you connect it again.`, "Disconnect"],
+    badge: n => [`Leave the ${n} badge?`, "Its issuer would have to offer it to you again.", "Leave"],
+    logout_all: () => ["Log out everywhere?", "You'll be signed out on every phone, computer and browser, this one too.", "Log out everywhere"],
+    delete: () => ["Delete your account?", "Your account, listings, matches and chats will be deleted. This can't be undone.", "Delete account"],
+  };
+  function ask(kind, name, then) {
+    const [title, text, yes] = words[kind](name);
+    $("ask-title").textContent = title; $("ask-text").textContent = text; $("ask-yes").textContent = yes;
+    dlg.onclose = () => { if (dlg.returnValue === "yes") then(); };
+    dlg.returnValue = ""; dlg.showModal();
+  }
+  document.querySelectorAll("[data-ask]").forEach(b => b.addEventListener("click", () => {
+    const kind = b.dataset.ask;
+    ask(kind, "", () => call("/me/" + kind, kind === "delete" ? { confirm: true } : {}, "details-err"));
+  }));
+  $("logout").addEventListener("click", () => call("/me/logout", {}, "details-err"));
+
+  // Passkeys: added after a confirmation with one already held; removed after one too.
+  async function confirmWithPasskey() {
+    const o = await call("/me/passkey/confirm/options", {}, "details-err");
+    if (!o || !o.passkey) return false;
+    const pk = o.passkey;
+    let cred;
+    try {
+      cred = await navigator.credentials.get({ publicKey: { challenge: unb64u(pk.challenge), rpId: pk.rpId, timeout: pk.timeout,
+        userVerification: "required", allowCredentials: pk.allowCredentials.map(c => ({ type: "public-key", id: unb64u(c.id) })) } });
+    } catch (_) { return false; }
+    const r = cred.response;
+    return !!(await call("/me/passkey/confirm/finish", { rawId: b64u(cred.rawId), response: {
+      clientDataJSON: b64u(r.clientDataJSON), authenticatorData: b64u(r.authenticatorData), signature: b64u(r.signature),
+      userHandle: r.userHandle ? b64u(r.userHandle) : "" } }, "details-err"));
+  }
+  async function removePasskey(id) {
+    if (!(await confirmWithPasskey())) return;
+    await call("/me/passkey/remove", { id }, "details-err");
+  }
+  $("passkey-add").addEventListener("click", async () => {
+    if (state && state.passkeys.length && !(await confirmWithPasskey())) return;
+    const o = await call("/me/passkey/register/options", {}, "details-err");
+    if (!o || !o.passkey) return;
+    const pk = o.passkey;
+    let cred;
+    try {
+      cred = await navigator.credentials.create({ publicKey: { ...pk, challenge: unb64u(pk.challenge),
+        user: { ...pk.user, id: unb64u(pk.user.id) },
+        excludeCredentials: pk.excludeCredentials.map(c => ({ type: "public-key", id: unb64u(c.id) })) } });
+    } catch (_) { return; }
+    const r = cred.response;
+    await call("/me/passkey/register/finish", { rawId: b64u(cred.rawId), response: {
+      clientDataJSON: b64u(r.clientDataJSON), attestationObject: b64u(r.attestationObject) } }, "details-err");
+  });
+
+  // The plan: Stripe's Checkout, as the phone does, and back.
+  async function pay(path) {
+    const out = await call(path, {}, "plan-err");
+    const p = out && out.payment;
+    if (p && typeof p.redirect === "string") location.assign(p.redirect);
+    else if (p && p.error) say("plan-err", p.error);
+  }
+  $("subscribe").addEventListener("click", () => pay("/me/plan/subscribe"));
+  $("end-plan").addEventListener("click", () => pay("/me/plan/end"));
+  if ($("get-verified")) $("get-verified").addEventListener("click", () => pay("/me/plan/verify"));
+
+  // Badges: an invite code, then accept or not.
+  $("badge-code").addEventListener("submit", async e => {
+    e.preventDefault();
+    await call("/me/badge/preview", { code: $("badge-code-text").value.trim() }, "held-err");
+  });
+  $("badge-accept").addEventListener("click", () => call("/me/badge/accept", { code: $("badge-code-text").value.trim() }, "held-err"));
+  $("badge-decline").addEventListener("click", () => call("/me/badge/decline", {}, "held-err"));
+
+  // The list of parts marks the one on screen.
+  const links = [...document.querySelectorAll(".parts a")];
+  const parts = [...document.querySelectorAll(".layout .part")];
+  const show = id => links.forEach(a => a.classList.toggle("on", a.hash === "#" + id));
+  const mark = () => show((parts.filter(p => p.getBoundingClientRect().top <= innerHeight * 0.3).at(-1) || parts[0]).id);
+  addEventListener("scroll", mark, { passive: true });
+
+  (async () => {
+    // Back from Stripe (payments.Payments: the address it was sent with, and "pay"): the page asks for it here, from
+    // its own origin, and nothing changes before that.
+    const q = new URLSearchParams(location.search);
+    if (q.has("pay")) {  // back from Stripe (the app's /account and /pay/return send it here with its ref)
+      await call("/me/plan/return", { ref: q.get("pay"), cancel: q.get("cancel") === "1" }, "plan-err");
+      history.replaceState(null, "", location.pathname + location.hash);
+    }
+    await call("/me/state");
+    // An invite link (the badge dashboard's: this page's address with #badge=<code>): its code in the field and its
+    // badge shown to accept or not; the code leaves the address at once.
+    if (location.hash.startsWith("#badge=")) {
+      const code = decodeURIComponent(location.hash.slice(7)).trim();
+      history.replaceState(null, "", location.pathname + location.search);
+      if (code) {
+        $("badge-code-text").value = code;
+        await call("/me/badge/preview", { code }, "held-err");
+        $("held").scrollIntoView();
+      }
+    }
+    mark();
+  })();
+})();
+</script>
+</body>
+</html>
