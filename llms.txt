@@ -1,0 +1,8 @@
+# Belong
+
+> Belong helps people find each other. A person tells their own AI what they're looking for or offering, and what to show or hide; Belong matches it with everyone else's listings, and two people are introduced only when both say yes. Any AI or app can be a front end.
+
+## For AI agents and developers
+
+- [Connect an AI to Belong](use.md): the rules an agent must follow for its person, adding Belong to an AI over MCP, its tools, and guarantees.
+- [Connect an app to Belong](developers.md): the same rules, connecting an app over OAuth 2.1 with PKCE and DPoP, sign-in for AI apps, listings, matches, answers, conversations after an introduction, every call, problem codes and guarantees.

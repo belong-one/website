@@ -1,0 +1,354 @@
+/* The private badges story, shared by the landing page and the developer page (site/_badges.html is its markup and
+   script, put in place by tools/build_site.py). Styled only with the design system's tokens. */
+
+/* The private badges story: a regional property association, Saltbridge, in four cards, each with a picture of that step.
+   The pictures are the association's own product, so they wear its brand, not Belong's: deep sea green and sand from the
+   design system's palette, a serif wordmark (the system's own serif, nothing loaded) and a bridge over water. */
+.stage { --sb: var(--sf-olive-800); --sb-deep: var(--sf-olive-900); --sb-sand: var(--sf-paper-400); --sb-sand-deep: var(--sf-paper-500);
+  --sb-ink: var(--sf-ink-900); --sb-serif: Georgia, 'Times New Roman', serif;
+  margin-top: auto; background: var(--surface-sunken); border-radius: var(--radius-md); height: 380px; padding: var(--space-6);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* The association's product is its own, and it is light in either theme: inside its screens and cards the text and
+   the hidden well keep the light theme's values (the same tokens' light values, so nothing changes on the light theme). */
+.sb-phone, .lp-screen, .sb-card, .sb-stats { --text-primary: var(--sf-ink-900); --text-secondary: var(--sf-ink-700);
+  --text-tertiary: var(--sf-ink-500); --text-accent: var(--sf-ember-650); --text-ai: var(--sf-azure-550);
+  --surface-sunken: var(--sf-paper-500); --accent-ai-muted: color-mix(in srgb, var(--sf-azure-400) 14%, transparent);
+  color-scheme: light; }
+/* Belong's own dashboard follows the theme: its browser bar is the parts' gray, its three dots a strong line. */
+.stage { --chrome: var(--part-bg); --chrome-dot: var(--sf-char-200); }
+:root[data-theme="dark"] .stage { --chrome-dot: var(--border-strong); }
+.stage small { display: block; font: var(--text-caption); font-size: 11px; color: var(--text-tertiary); }
+.sb-mark { width: 22px; height: 22px; flex: none; }
+.sb-mark rect { fill: var(--sb); }
+.sb-mark path { fill: none; stroke: var(--sb-sand); stroke-width: 1.8; stroke-linecap: round; }
+
+/* 1. Belong's own dashboard, where an organization makes its badges: Belong's look, not the association's. */
+.bd-admin { width: 100%; max-width: 380px; background: var(--surface-card); border-radius: 10px; box-shadow: var(--shadow-md);
+  overflow: hidden; font: var(--text-caption); color: var(--text-primary); }
+.sb-chrome { display: flex; align-items: center; gap: 5px; padding: 8px 10px; background: var(--chrome); }
+.sb-chrome i { width: 8px; height: 8px; border-radius: 50%; background: var(--chrome-dot); }
+.sb-chrome span { margin-left: 8px; flex: 1; background: var(--surface-card); border-radius: 4px; padding: 2px 8px; font-size: 10px;
+  color: var(--text-tertiary); }
+.bd-body { display: grid; grid-template-columns: 96px 1fr; min-height: 210px; }
+.bd-side { background: var(--surface-raised); padding: 14px 0; display: flex; flex-direction: column; gap: 2px; }
+.bd-side img { height: 15px; width: auto; margin: 0 12px 14px; align-self: flex-start; }
+.bd-side span { font-size: 11px; color: var(--text-secondary); padding: 5px 12px; border-left: 2px solid transparent; }
+.bd-side span.on { color: var(--text-primary); font-weight: 600; border-left-color: var(--border-accent); background: var(--surface-card); }
+.bd-main { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.stage .bd-org { margin: 0; font: var(--text-label); font-size: 10px; letter-spacing: var(--tracking-wider); text-transform: uppercase;
+  color: var(--text-tertiary); }
+.bd-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.bd-title b { font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: var(--tracking-tight); }
+.bd-btn { background: var(--accent-default); color: var(--text-on-accent); font-size: 10px; font-weight: 600; padding: 5px 10px;
+  border-radius: var(--radius-sm); }
+.bd-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 10px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
+.bd-row b { font-size: 12px; }
+.bd-row .badge { font-size: 9px; padding: 2px 7px; }
+
+/* 5. The Agent badge goes public: in review, then public, then shown on a listing anywhere on Belong (Belong's look). */
+.pb { width: 100%; max-width: 380px; display: flex; flex-direction: column; position: relative; }
+.pb .bd-admin { max-width: 380px; position: relative; }
+.pb .bd-main { padding-bottom: 46px; }
+/* Belong's network, spreading out from behind the dashboard well past the picture's edges. */
+.pb-net { position: absolute; left: 50%; top: 50%; margin: -410px 0 0 -550px; pointer-events: none; }
+.pb-net.front { z-index: 1; }
+.pb-swap { display: grid; }
+.pb-swap > * { grid-area: 1 / 1; }
+.pb-swap .was { opacity: 0; }
+.pb-swap .now b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-agent > .pb-swap, .pb-swap > * { min-width: 0; }
+.pb .bd-row { gap: 6px; }
+.pb-net > g { opacity: 0.75; }
+.pb-net .ln line { stroke: var(--text-tertiary); stroke-width: 1; }
+.pb-net .pl path { fill: var(--text-primary); }
+.pb-net .pt .c { fill: var(--accent-default); } .pb-net .pt .p { fill: var(--accent-ai); } .pb-net .pt .m { fill: var(--accent-olive); }
+.pb-state { display: grid; justify-items: end; }
+.pb-state > * { grid-area: 1 / 1; }
+.pb-state .success { opacity: 1; }
+.pb-state .warning { opacity: 0; }
+/* The person's Belong profile stays still in the corner while the view moves: no badge yet, then the public one. */
+.pb-shown { position: absolute; z-index: 2; left: var(--space-4); bottom: var(--space-4); width: 296px; background: var(--surface-card);
+  border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: var(--shadow-md); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.stage .pb-where { margin: 0; font: var(--text-label); font-size: 10px; letter-spacing: var(--tracking-wider); text-transform: uppercase;
+  color: var(--text-tertiary); }
+.pb-person { display: flex; align-items: center; gap: 10px; }
+.pb-person img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.pb-person b { font: var(--text-body-s); font-weight: 600; }
+.stage .pb-person small { font-size: 10.5px; margin-top: 1px; }
+.pb-chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font: var(--text-caption); font-weight: 600;
+  color: var(--text-primary); background: var(--surface-raised); border-radius: var(--radius-pill); padding: 4px 11px; }
+.pb-chip .bmark { margin-right: 0; }
+/* The badge on the listing: there once it's public (the space for it opens as it arrives). */
+.pb-badge { display: grid; grid-template-rows: 1fr; }
+.pb-badge > div { overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; }
+
+/* 2. Saltbridge Homes on a phone. */
+.sb-phone { width: 196px; height: 330px; border: 7px solid var(--sb-ink); border-radius: 32px; overflow: hidden; background: var(--sf-paper-100);
+  display: flex; flex-direction: column; box-shadow: var(--shadow-md); }
+.sb-hero { position: relative; height: 150px; background: linear-gradient(var(--sb-sand), var(--sf-paper-100)); }
+.sb-hero > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sb-hero .sun { fill: var(--sf-ember-200); }
+.sb-hero .sea { fill: var(--sb); }
+.sb-hero .house { fill: var(--sf-paper-050); }
+.sb-hero .roof { fill: none; stroke: var(--sb-deep); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.sb-hero .door { fill: var(--sb-deep); }
+.sb-brand { position: absolute; top: 14px; left: 14px; display: flex; align-items: center; gap: 6px; font-family: var(--sb-serif);
+  font-size: 15px; color: var(--sb-deep); }
+.sb-brand .sb-mark { width: 18px; height: 18px; }
+.sb-copy { padding: 14px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+.stage .sb-head { margin: 0 0 auto; font-family: var(--sb-serif); font-size: 17px; line-height: 1.2; color: var(--sb-ink); }
+.sb-cta { display: block; text-align: center; background: var(--sb); color: var(--sb-sand); font: var(--text-caption); font-weight: 600;
+  padding: 8px; border-radius: 8px; }
+.sb-cta.ghost { background: none; color: var(--sb); box-shadow: inset 0 0 0 1px var(--sb); }
+.stage .sb-cta small { display: block; font-size: 9px; font-weight: 400; color: var(--sb); opacity: 0.75; }
+.stage .sb-runs { margin: 2px 0 0; display: flex; align-items: center; justify-content: center; gap: 4px; font: var(--text-caption); font-size: 9px;
+  color: var(--text-tertiary); }
+
+/* 2b. The same app on a laptop, with the phone in front of it. */
+.sb-found { position: relative; width: 460px; height: 440px; flex: none; zoom: 0.8; }
+.sb-devices { position: absolute; left: 0; bottom: 34px; z-index: 1; width: 420px; height: 290px; }
+.sb-devices::before { content: ""; position: absolute; left: -10px; right: -16px; bottom: -14px; height: 34px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sf-ink-900) 22%, transparent), transparent); }  /* a shadow, dark in either theme */
+.sb-laptop .lp-screen { box-shadow: var(--shadow-lg); }
+.sb-laptop { position: absolute; left: 0; bottom: 0; width: 350px; }
+/* Belong, further back and off to the right: a cloud of people joined by connections, like the landing page's
+   background, seen in three dimensions (near points larger and stronger), labeled with the wordmark. */
+.bl-cloud { position: absolute; right: 0; top: 26px; width: 340px; opacity: 0.6; pointer-events: none; }
+.bl-cloud svg { width: 100%; height: auto; display: block; overflow: visible; }
+/* The label sits on the outline's top, breaking the line, like a name on a tag. */
+.bl-cloud img { position: absolute; left: 65%; top: 7px; transform: translateX(-50%); height: 17px; width: auto;
+  padding: 0 10px; background: var(--surface-sunken); box-sizing: content-box; }
+/* The outline: overlapping circles, each stroked, then the same circles filled with the ground on top, so only
+   the outer edge of their union shows, flat along the bottom. */
+.bl-cloud .outline { fill: none; stroke: var(--text-tertiary); stroke-width: 2.8; }
+.bl-cloud .outline-fill { fill: var(--surface-sunken); }
+/* Links from the cloud down to the devices, drawn like a blueprint: straight runs with right-angle turns, a ring
+   where they leave the cloud and a dot where they arrive. */
+.bl-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.bl-links path { fill: none; stroke: var(--text-tertiary); stroke-width: 1.4; stroke-linejoin: miter; }
+.bl-links .run { stroke: var(--text-secondary); stroke-width: 2; stroke-dasharray: 0 100; }
+.bl-links .from { fill: var(--surface-sunken); stroke: var(--text-tertiary); stroke-width: 1.4; }
+.bl-links .to { fill: var(--text-tertiary); }
+.bl-cloud .ln line { stroke: var(--text-tertiary); stroke-width: 0.8; }
+.bl-cloud .pl path { fill: var(--text-primary); }
+.bl-cloud .pt .c { fill: var(--accent-default); }
+.bl-cloud .pt .p { fill: var(--accent-ai); }
+.bl-cloud .pt .m { fill: var(--accent-olive); }
+
+.lp-screen { height: 220px; border: 7px solid var(--sb-ink); border-bottom-width: 9px; border-radius: 12px 12px 0 0; background: var(--sf-paper-100);
+  overflow: hidden; display: flex; flex-direction: column; }
+.lp-nav { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--sb-sand); }
+.lp-nav .sb-mark { width: 14px; height: 14px; }
+.lp-name { font-family: var(--sb-serif); font-size: 12px; color: var(--sb-deep); }
+.lp-links { display: flex; gap: 10px; margin-left: auto; }
+.lp-links i { font-style: normal; font-size: 8px; color: var(--text-secondary); }
+.lp-sign { font-size: 8px; font-weight: 600; color: var(--sb-sand); background: var(--sb); padding: 3px 7px; border-radius: 4px; margin-left: 8px; }
+.lp-hero { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; background: linear-gradient(90deg, var(--sf-paper-100) 45%, var(--sb-sand)); }
+.lp-copy { padding: 0 8px 0 14px; display: flex; flex-direction: column; gap: 5px; }
+.stage .lp-head { margin: 0; font-family: var(--sb-serif); font-size: 16px; line-height: 1.15; color: var(--sb-ink); }
+.stage .lp-sub { margin: 0 0 4px; font: var(--text-caption); font-size: 8px; color: var(--text-secondary); }
+.lp-copy .sb-cta { font-size: 8px; padding: 5px 6px; border-radius: 5px; }
+.lp-copy .sb-cta small { font-size: 7px; }
+.lp-scene { align-self: stretch; position: relative; }
+.lp-scene svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lp-scene .sun { fill: var(--sf-ember-200); }
+.lp-scene .sea { fill: var(--sb); }
+.lp-scene .house { fill: var(--sf-paper-050); }
+.lp-scene .roof { fill: none; stroke: var(--sb-deep); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.lp-scene .door { fill: var(--sb-deep); }
+.stage .lp-runs { margin: 0; padding: 4px; display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 7px;
+  color: var(--text-tertiary); background: var(--sf-paper-100); }
+.lp-base { height: 10px; margin: 0 -26px; background: linear-gradient(var(--sf-char-200), var(--sf-char-300)); border-radius: 2px 2px 10px 10px; }
+.sb-phone-wrap { position: absolute; right: 0; bottom: 0; width: 126px; height: 206px; }
+.sb-phone-wrap .sb-phone { transform-origin: 0 0; scale: 0.6; }
+/* The two devices and their base are drawn at one size and scaled to the room its picture has. */
+.stage { container-type: inline-size; }
+@container (max-width: 400px) { .sb-meet { zoom: 0.78; } }
+/* In a narrow picture (a phone) the dashboard drops its side menu and the profile card spans the picture, so both
+   stay at full size, with no zoom (Safari aims step 5's close-up wrongly inside a zoomed element). */
+@container (max-width: 400px) {
+  .stage .bd-side { display: none; }
+  .stage .bd-body { grid-template-columns: minmax(0, 1fr); }
+  .pb .bd-row { padding-inline: 8px; }
+  .pb-shown { width: auto; right: var(--space-4); }
+  .pb { align-self: flex-start; }
+  .pb-swap .now b { white-space: normal; }
+}
+@container (max-width: 368px) { .sb-found { zoom: 0.75; } }
+@container (max-width: 340px) { .sb-found { zoom: 0.7; } }
+@container (max-width: 310px) { .sb-found { zoom: 0.64; } }
+@container (max-width: 280px) { .sb-found { zoom: 0.58; } }
+
+/* 3. The rules, in the developer's editor. */
+.sb-editor { width: 100%; max-width: 340px; background: var(--sf-char-900); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-md); }
+.sb-tab { background: var(--sf-black); padding: 0 10px; display: flex; }
+.sb-tab span { font: var(--text-mono-s); font-size: 11px; color: var(--sf-char-100); padding: 7px 12px; background: var(--sf-char-900);
+  border-top: 2px solid var(--sf-olive-400); }
+.sb-editor pre { margin: 0; padding: 14px 16px; font: var(--text-mono-s); font-size: 12px; line-height: 1.6; color: var(--sf-char-100); overflow-x: auto; }
+.sb-editor .c { color: var(--sf-char-400); }
+.sb-editor .k { color: var(--sf-azure-300); }
+.sb-editor .v { color: var(--sf-olive-300); }
+
+/* 4. The introduction in the app, and the association's monthly figures. */
+.sb-meet { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 10px; }
+.sb-card, .sb-stats { background: var(--sf-paper-100); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow-sm); color: var(--sb-ink); }
+/* Both sides of one introduction: the buyer sees the agent, the agent sees the buyer's request but never its hidden budget. */
+.sb-views { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sb-views .sb-card { display: flex; flex-direction: column; }
+.sb-view { display: flex; flex-direction: column; }
+.sb-view .sb-card { flex: 1; }
+.stage .sb-who { margin: 0 0 6px 2px; font: var(--text-label); font-size: 10px; letter-spacing: var(--tracking-wider); text-transform: uppercase;
+  color: var(--text-accent); }
+.stage .sb-label { margin: 0 0 8px; font-family: var(--sb-serif); font-size: 15px; color: var(--sb-deep); }
+.sb-views small { margin-top: 6px; }
+.sb-views b { display: block; font: var(--text-caption); font-weight: 600; color: var(--sb-ink); }
+.sb-views .hidden-well { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-top: 6px; padding: 4px 6px;
+  font: var(--text-caption); font-size: 11px; }
+.sb-views .badge { font-size: 9px; padding: 2px 6px; }
+.sb-views .sb-cta { margin-top: auto; }
+/* The agent's profile comes from the association's own app: a photo, a name, a rating and a line about them. */
+.sb-agent { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.sb-agent img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; }
+.sb-agent b { font-size: 13px; }
+.sb-rating { display: flex; align-items: center; gap: 4px; font: var(--text-caption); font-size: 11px; font-weight: 600; color: var(--sb-ink); }
+.sb-rating span { font-weight: 400; color: var(--text-tertiary); }
+.sb-rating svg { width: 58px; height: 10px; }
+.sb-rating .off path { fill: var(--sb-sand-deep); }
+.sb-rating .on path { fill: var(--sf-signal-warning); }
+.stage .sb-meta { margin: 4px 0 0; font: var(--text-caption); font-size: 10.5px; color: var(--text-secondary); }
+.sb-views .sb-card > :nth-last-child(2) { margin-bottom: 12px; }
+.sb-stats-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font: var(--text-caption); }
+.sb-stats-head .sb-mark { width: 16px; height: 16px; }
+.sb-figs { display: grid; grid-template-columns: repeat(3, 1fr); }
+.sb-figs b { font-family: var(--sb-serif); font-size: 20px; font-weight: 400; color: var(--sb-deep); }
+.sb-bars { display: block; width: 100%; height: 22px; margin-top: 6px; }
+.sb-bars rect { fill: var(--sb); opacity: 0.85; }
+@media (max-width: 600px) {
+  .stage { height: auto; min-height: 240px; padding: var(--space-4); }
+  .bd-body { grid-template-columns: 70px 1fr; }
+  .bd-side img { width: 46px; height: auto; margin: 0 10px 12px; }
+  .bd-side span { padding: 5px 10px; }
+  .sb-editor pre { font-size: 10.5px; padding: 12px; }
+}
+.build-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-6); flex-wrap: wrap; margin-top: var(--space-4); }
+/* The private badges story, played as a step list: one picture at a time in a frame. */
+.frame { position: relative; height: 524px; background: var(--surface-sunken); border-radius: var(--radius-lg); overflow: hidden; }
+.frame .pic { position: absolute; inset: 0; height: auto; margin: 0; background: none; opacity: 0; visibility: hidden; }
+.frame .pic.on { opacity: 1; visibility: visible; }
+.frame .pic { padding: var(--space-4); }
+/* In the big frame the association's picture is drawn at full size when there's room for it. */
+@container (min-width: 468px) { .frame .sb-found { zoom: 1; } }
+@container (min-width: 506px) { .frame .sb-found { zoom: 1.1; } }
+.num { font: var(--text-label); color: var(--text-accent); margin: 0 0 var(--space-2); }
+
+/* The step list: the steps on the left, the one playing open with a bar filling until the next; its picture on the right. */
+.flow { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr); gap: var(--space-10); align-items: center; }
+/* On this page the steps and their picture sit on a frosted panel of the ground that blurs the moving web behind the page. */
+#build .flow { padding: var(--space-8); border-radius: var(--radius-lg); border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-app) 70%, transparent); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  box-shadow: var(--shadow-sm); }
+@media (max-width: 600px) { #build .flow { padding: var(--space-4); } }
+.b-list { display: flex; flex-direction: column; gap: var(--space-2); }
+#build .flow { row-gap: var(--space-6); align-items: start; }
+.b-case { grid-column: 1 / -1; max-width: none; padding: 0 var(--space-4); font: var(--text-body); color: var(--text-secondary); }
+.b-case span { display: block; font: var(--text-label); color: var(--text-accent); margin-bottom: var(--space-1); }
+.b-step { all: unset; cursor: pointer; display: grid; grid-template-columns: 24px 1fr; column-gap: var(--space-3); padding: var(--space-4);
+  border-radius: var(--radius-md); }
+.b-step:focus-visible { outline: 2px solid var(--border-accent); }
+.b-step .num { grid-row: span 3; margin: 0; padding-top: 3px; }
+.b-step b { font: var(--text-heading-l); color: var(--text-tertiary); }
+.b-step .b-text { display: none; font: var(--text-body-s); color: var(--text-secondary); margin-top: var(--space-2); }
+.b-step .bar { display: none; height: 2px; margin-top: var(--space-3); background: var(--border-subtle); border-radius: 2px; overflow: hidden; }
+.b-step .bar i { display: block; height: 100%; width: 0; background: var(--border-accent); }
+.b-step.on { background: var(--surface-card); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border-ai); }
+.b-step.on b { color: var(--text-primary); }
+.b-step.on .b-text, .b-step.on .bar { display: block; }
+.b-step.on .bar i { width: 100%; }
+.flow.paused .b-step.on .bar i { animation-name: none; width: 100%; background: var(--border-strong); }
+/* Arrows to the step before or after, shown only where the steps stack above their picture. */
+.b-nav { display: none; }
+@media (max-width: 860px) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .frame { height: 400px; }
+  /* One step at a time: the open step in a box as tall as the longest, so the picture below never moves, with an
+     arrow either side of it. Its number leads its title ("3. Customize matchmaking"). */
+  #build .flow { row-gap: var(--space-4); }
+  .b-nav { display: contents; }
+  .b-list { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-1);
+    counter-reset: step; }
+  .b-nav .ways-step { width: 28px; }
+  .b-nav [data-step="-1"] { grid-area: 1 / 1; }
+  .b-nav [data-step="1"] { grid-area: 1 / 3; }
+  .b-step { counter-increment: step; }
+  .b-step b::before { content: counter(step) ". "; }
+  .b-step { grid-area: 1 / 2; align-self: stretch; }
+  .b-step .b-text, .b-step .bar { display: block; }
+  .b-step:not(.on) { visibility: hidden; }
+  .b-step b { font: var(--text-heading-m); }
+  .b-step { grid-template-columns: minmax(0, 1fr); }
+  .b-step .num { display: none; }
+  .b-case { padding: 0; }
+}
+
+/* Motion: only without reduced motion. With it, every picture shows its finished state and nothing plays by itself. */
+@media (prefers-reduced-motion: no-preference) {
+  .pic:not(.play) [data-r] { opacity: 0; transform: translateY(10px); }
+  .pic:not(.play) [data-r="l"] { transform: translateX(-18px); }
+  .pic:not(.play) [data-r="r"] { transform: translateX(18px); }
+  .pic.play [data-r] { transition: opacity 500ms var(--ease-standard), transform 600ms cubic-bezier(0.33, 1, 0.68, 1);
+    transition-delay: calc(var(--i) * var(--gap, 150ms) + 150ms); }
+  .pic[data-n="2"] { --gap: 90ms; }
+  .pic .sb-bars rect { transform-box: fill-box; transform-origin: 50% 100%; }
+  .pic:not(.play) .sb-bars rect { transform: scaleY(0.1); }
+  .pic.play .sb-bars rect { transition: transform 600ms cubic-bezier(0.33, 1, 0.68, 1); transition-delay: calc(1500ms + var(--j) * 70ms); }
+  .pic.play[data-n="0"] .bd-btn { animation: press 500ms 150ms both; }
+  .pic.play[data-n="1"] .sb-cta:not(.ghost) { animation: press 500ms 1900ms both; }
+  /* 5. From the whole dashboard the view closes in on the Agent row, slowing as it arrives; In review flickers, the
+     badge turns Public with a burst and Belong's network starts growing out from behind it as the view slowly pulls back. */
+  .pic.play[data-n="4"] .pb { transform-origin: var(--ox, 85%) var(--oy, 30%); animation: dive 4800ms 200ms both; }
+  @keyframes dive {
+    0% { transform: none; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+    37.5% { transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(var(--s, 2.2)); }
+    58% { transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(var(--s, 2.2)); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    100% { transform: none; }
+  }
+  /* On a phone the window starts at full size and, once the badge is Public, pulls back so the network shows around it. */
+  @container (max-width: 400px) {
+    .pic.play[data-n="4"] .pb { transform-origin: 50% 0; animation: pull 1800ms 2900ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+  }
+  @keyframes pull { to { transform: scale(0.72); } }
+  .pic.play[data-n="4"] .pb-state .warning { animation: flicker 800ms 1950ms both; }
+  @keyframes flicker { 0%, 19%, 40%, 59%, 80%, 99% { opacity: 1; } 20%, 39%, 60%, 79%, 100% { opacity: 0; } }
+  .pic.play[data-n="4"] .pb-state .success { animation: burst 750ms 2750ms both cubic-bezier(0.33, 1, 0.68, 1); }
+  @keyframes burst {
+    0% { opacity: 0; transform: scale(0.4); box-shadow: 0 0 0 0 color-mix(in srgb, var(--text-success) 70%, transparent); }
+    45% { opacity: 1; transform: scale(1.55); }
+    70% { transform: scale(0.94); }
+    100% { opacity: 1; transform: none; box-shadow: 0 0 0 16px color-mix(in srgb, var(--text-success) 0%, transparent); }
+  }
+  .pic.play[data-n="4"] .pb-agent { animation: lit 1100ms 2750ms both; }
+  @keyframes lit { 15% { background: var(--accent-success-muted); border-color: var(--text-success); } }
+  .pic.play[data-n="4"] .pb-swap .was { animation: name-out 250ms 2750ms both; }
+  .pic.play[data-n="4"] .pb-swap .now { animation: name-in 350ms 2850ms both; }
+  @keyframes name-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes name-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pic.play[data-n="4"] .pb-badge { animation: room 500ms 3500ms both cubic-bezier(0.33, 1, 0.68, 1); }
+  .pic.play[data-n="4"] .pb-badge > div { animation: chip-in 450ms 3800ms both cubic-bezier(0.33, 1, 0.68, 1); }
+  @keyframes room { from { grid-template-rows: 0fr; margin-top: -8px; } }
+  @keyframes chip-in { from { opacity: 0; transform: scale(0.85); } 60% { opacity: 1; transform: scale(1.06); } }
+  @keyframes review-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes public-in { from { opacity: 0; transform: scale(0.8); } 60% { transform: scale(1.12); } to { opacity: 1; transform: none; } }
+  /* A short run of light travels down each link, from the cloud to the device, then the next follows. */
+  .pic .bl-links .run { animation: run 1.8s cubic-bezier(0.45, 0, 0.55, 1) var(--d, 0s) infinite; }
+  @keyframes run { from { stroke-dasharray: 14 100; stroke-dashoffset: 14; } to { stroke-dasharray: 14 100; stroke-dashoffset: -100; } }
+  .caret { display: inline-block; width: 1px; height: 1.1em; margin-left: 1px; vertical-align: -0.15em; background: var(--sf-char-100);
+    animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes press { 40% { transform: scale(0.92); filter: brightness(1.25); } }
+  .frame .pic { transition: opacity 500ms var(--ease-standard), transform 600ms cubic-bezier(0.33, 1, 0.68, 1), visibility 0s 600ms; transform: translateX(24px); }
+  .frame .pic.on { transform: none; transition-delay: 0s; }
+  .frame .pic.was { transform: translateX(-24px); }
+  .b-step.on.run .bar i { width: 0; animation: fill var(--ms) linear forwards; }
+  @keyframes fill { to { width: 100%; } }
+}
